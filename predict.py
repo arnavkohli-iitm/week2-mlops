@@ -2,45 +2,59 @@ import joblib
 import sys
 import pandas as pd
 
-# 1. Define paths
 MODEL_PATH = 'artifacts/model.joblib'
 
-def predict(features):
-    """
-    Loads the model and makes a prediction.
-    """
+def load_model():
+    """Loads the model from disk."""
     try:
-        # 2. Load the model
         model = joblib.load(MODEL_PATH)
+        return model
     except FileNotFoundError:
         print("Error: Model file not found.")
         print("Please run 'dvc pull' to download the model from GCS.")
-        return
+        return None
 
-    # 3. Format features
-    # We expect 4 features from the command line
+def format_features(features):
+    """Formats a list of feature strings into a DataFrame."""
     try:
         # Convert string inputs to floats
         feature_values = [float(f) for f in features]
         
-        # Create a DataFrame with the correct feature names 
-        # (Assuming standard iris dataset order: sepal_len, sepal_wid, petal_len, petal_wid)
+        # Create a DataFrame with the correct feature names
         column_names = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width']
         data_df = pd.DataFrame([feature_values], columns=column_names)
-
+        return data_df
+        
     except Exception as e:
         print(f"Error: Invalid input features. Expected 4 numbers. Got: {features}")
         print(e)
-        return
+        return None
 
-    # 4. Make prediction
+def make_prediction(model, data_df):
+    """Makes a prediction using the loaded model and formatted data."""
+    if model is None or data_df is None:
+        return None
+    
+    # Make prediction
     prediction = model.predict(data_df)
-    print(f"Prediction: {prediction[0]}")
+    return prediction[0] # Return the single prediction value
 
-if __name__ == "__main__":
+def main():
+    """Main function to run the script from the command line."""
     if len(sys.argv) != 5:
         print("Usage: python predict.py <sepal_length> <sepal_width> <petal_length> <petal_width>")
         print("Example: python predict.py 5.1 3.5 1.4 0.2")
-    else:
-        # Pass all arguments except the script name (sys.argv[0])
-        predict(sys.argv[1:])
+        return
+
+    features = sys.argv[1:]
+    model = load_model()
+    
+    if model:
+        data_df = format_features(features)
+        if data_df is not None:
+            prediction = make_prediction(model, data_df)
+            if prediction is not None:
+                print(f"Prediction: {prediction}")
+
+if __name__ == "__main__":
+    main()
